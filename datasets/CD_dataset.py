@@ -21,11 +21,11 @@ CD data set with pixel-level labels；
 IMG_FOLDER_NAME = "A"
 IMG_POST_FOLDER_NAME = 'B'
 LIST_FOLDER_NAME = 'list'
-ANNOT_FOLDER_NAME = "label"
+ANNOT_FOLDER_NAME = 'OUT'  # "label"
 
 IGNORE = 255
 
-label_suffix='.png' # jpg for gan dataset, others : png
+label_suffix='.jpg'  # '.png' # jpg for gan dataset, others : png
 
 def load_img_name_list(dataset_path):
     img_name_list = np.loadtxt(dataset_path, dtype=np.str)
@@ -39,16 +39,16 @@ def load_image_label_list_from_npy(npy_path, img_name_list):
     return [cls_labels_dict[img_name] for img_name in img_name_list]
 
 
-def get_img_post_path(root_dir,img_name):
-    return os.path.join(root_dir, IMG_POST_FOLDER_NAME, img_name)
+def get_img_post_path(root_dir, split, img_name):
+    return os.path.join(root_dir, split, IMG_POST_FOLDER_NAME, img_name)
 
 
-def get_img_path(root_dir, img_name):
-    return os.path.join(root_dir, IMG_FOLDER_NAME, img_name)
+def get_img_path(root_dir, split, img_name):
+    return os.path.join(root_dir, split, IMG_FOLDER_NAME, img_name)
 
 
-def get_label_path(root_dir, img_name):
-    return os.path.join(root_dir, ANNOT_FOLDER_NAME, img_name.replace('.jpg', label_suffix))
+def get_label_path(root_dir, split, img_name):
+    return os.path.join(root_dir, split, ANNOT_FOLDER_NAME, img_name.replace('.jpg', label_suffix))
 
 
 class ImageDataset(data.Dataset):
@@ -78,8 +78,8 @@ class ImageDataset(data.Dataset):
             )
     def __getitem__(self, index):
         name = self.img_name_list[index]
-        A_path = get_img_path(self.root_dir, self.img_name_list[index % self.A_size])
-        B_path = get_img_post_path(self.root_dir, self.img_name_list[index % self.A_size])
+        A_path = get_img_path(self.root_dir, self.split, self.img_name_list[index % self.A_size])
+        B_path = get_img_post_path(self.root_dir, self.split, self.img_name_list[index % self.A_size])
 
         img = np.asarray(Image.open(A_path).convert('RGB'))
         img_B = np.asarray(Image.open(B_path).convert('RGB'))
@@ -103,13 +103,21 @@ class CDDataset(ImageDataset):
 
     def __getitem__(self, index):
         name = self.img_name_list[index]
-        A_path = get_img_path(self.root_dir, self.img_name_list[index % self.A_size])
-        B_path = get_img_post_path(self.root_dir, self.img_name_list[index % self.A_size])
+        A_path = get_img_path(self.root_dir, self.split, self.img_name_list[index % self.A_size])
+        B_path = get_img_post_path(self.root_dir, self.split, self.img_name_list[index % self.A_size])
         img = np.asarray(Image.open(A_path).convert('RGB'))
         img_B = np.asarray(Image.open(B_path).convert('RGB'))
-        L_path = get_label_path(self.root_dir, self.img_name_list[index % self.A_size])
+        L_path = get_label_path(self.root_dir, self.split, self.img_name_list[index % self.A_size])
 
-        label = np.array(Image.open(L_path), dtype=np.uint8)
+        # print(L_path)
+
+        # TO DO .......
+        if not os.path.exists(L_path):
+            print("AAAAAAAAA", L_path)
+            [img, img_B], _ = self.augm.transform([img, img_B], [], to_tensor=self.to_tensor)
+            return {'name': name, 'A': img, 'B': img_B}
+
+        label = np.array(Image.open(L_path).convert('L'), dtype=np.uint8)
         #  二分类中，前景标注为255
         if self.label_transform == 'norm':
             label = label // 255

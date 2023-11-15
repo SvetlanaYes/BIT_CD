@@ -19,6 +19,8 @@ class CDEvaluator():
 
     def __init__(self, args, dataloader):
 
+        self.data_name = args.data_name
+
         self.dataloader = dataloader
 
         self.n_class = args.n_class
@@ -32,7 +34,7 @@ class CDEvaluator():
         self.running_metric = ConfuseMatrixMeter(n_class=self.n_class)
 
         # define logger file
-        logger_path = os.path.join(args.checkpoint_dir, 'log_test.txt')
+        logger_path = os.path.join(args.checkpoint_dir, f'log_{self.data_name}_test.txt')
         self.logger = Logger(logger_path)
         self.logger.write_dict_str(args.__dict__)
 
@@ -52,6 +54,7 @@ class CDEvaluator():
         self.epoch_id = 0
         self.checkpoint_dir = args.checkpoint_dir
         self.vis_dir = args.vis_dir
+        self.outputs = args.outputs
 
         # check and create model dir
         if os.path.exists(self.checkpoint_dir) is False:
@@ -97,6 +100,8 @@ class CDEvaluator():
         G_pred = self.G_pred.detach()
         G_pred = torch.argmax(G_pred, dim=1)
 
+        # print(G_pred.shape, target.shape)
+
         current_score = self.running_metric.update_cm(pr=G_pred.cpu().numpy(), gt=target.cpu().numpy())
         return current_score
 
@@ -129,11 +134,11 @@ class CDEvaluator():
 
         scores_dict = self.running_metric.get_scores()
 
-        np.save(os.path.join(self.checkpoint_dir, 'scores_dict.npy'), scores_dict)
+        np.save(os.path.join(self.checkpoint_dir, f'{self.data_name}_scores_dict.npy'), scores_dict)
 
         self.epoch_acc = scores_dict['mf1']
 
-        with open(os.path.join(self.checkpoint_dir, '%s.txt' % (self.epoch_acc)),
+        with open(os.path.join(self.checkpoint_dir, f'{self.data_name}_{self.epoch_acc}.txt'),
                   mode='a') as file:
             pass
 
@@ -151,7 +156,14 @@ class CDEvaluator():
         self.batch = batch
         img_in1 = batch['A'].to(self.device)
         img_in2 = batch['B'].to(self.device)
+        # ---------------------------------------------------------
+
+        # ---------------------------------------------------------
         self.G_pred = self.net_G(img_in1, img_in2)
+        mask_pred = self.G_pred.detach().argmax(dim=1)[0]
+        mask_pred_numpy = mask_pred.data.cpu().numpy()
+        plt.imsave(os.path.join(self.outputs, batch['name'][0]), mask_pred_numpy*255)
+        # print(mask_pred_numpy.max())
 
     def eval_models(self,checkpoint_name='best_ckpt.pt'):
 
@@ -166,7 +178,10 @@ class CDEvaluator():
 
         # Iterate over data.
         for self.batch_id, batch in enumerate(self.dataloader, 0):
+            # print(batch['A'].shape)
             with torch.no_grad():
                 self._forward_pass(batch)
-            self._collect_running_batch_states()
-        self._collect_epoch_states()
+            if 'L' in self.batch:
+                self._collect_running_batch_states()
+        if 'L' in self.batch:
+            self._collect_epoch_states()

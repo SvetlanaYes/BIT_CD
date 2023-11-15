@@ -41,10 +41,13 @@ def main():
 
     #  checkpoints dir
     args.checkpoint_dir = os.path.join('checkpoints', args.project_name)
+    # args.checkpoint_dir = os.path.join('checkpoints', 'BIT_data_256')
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     #  visualize dir
     args.vis_dir = os.path.join('vis', args.project_name)
+    args.outputs = os.path.join('outputs', args.project_name)
     os.makedirs(args.vis_dir, exist_ok=True)
+    os.makedirs(args.outputs, exist_ok=True)
 
     dataloader = utils.get_loader(args.data_name, img_size=args.img_size,
                                   batch_size=args.batch_size, is_train=False,

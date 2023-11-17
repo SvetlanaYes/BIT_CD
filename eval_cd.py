@@ -35,6 +35,10 @@ def main():
 
     parser.add_argument('--checkpoint_name', default='best_ckpt.pt', type=str)
 
+    parser.add_argument('--testing_mode', default='resize', type=str, help='describes testing method: resize | crop | sliding_window_avg | sliding_window_gauss')
+
+    parser.add_argument('--window_size', default=256, type=int, help='size of the square window segment of the image that is processed with the net')
+
     args = parser.parse_args()
     utils.get_device(args)
     print(args.gpu_ids)
@@ -44,8 +48,8 @@ def main():
     # args.checkpoint_dir = os.path.join('checkpoints', 'BIT_data_256')
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     #  visualize dir
-    args.vis_dir = os.path.join('vis', args.project_name)
-    args.outputs = os.path.join('outputs', args.project_name)
+    args.vis_dir = os.path.join('vis', args.project_name, args.data_name)
+    args.outputs = os.path.join('outputs', args.project_name, args.data_name)
     os.makedirs(args.vis_dir, exist_ok=True)
     os.makedirs(args.outputs, exist_ok=True)
 

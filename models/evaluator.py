@@ -55,6 +55,8 @@ class CDEvaluator():
         self.checkpoint_dir = args.checkpoint_dir
         self.vis_dir = args.vis_dir
         self.outputs = args.outputs
+        self.testing_mode = args.testing_mode
+        self.window_size = args.window_size
 
         # check and create model dir
         if os.path.exists(self.checkpoint_dir) is False:
@@ -152,14 +154,61 @@ class CDEvaluator():
     def _clear_cache(self):
         self.running_metric.clear()
 
+    def _predict_for_window(self, image1, image2, i1, i2, j1, j2):
+        window_image1 = image1[:, :, i1:i2, j1:j2]
+        window_image2 = image2[:, :, i1:i2, j1:j2]
+        return self.net_G(window_image1, window_image2)
+
     def _forward_pass(self, batch):
         self.batch = batch
         img_in1 = batch['A'].to(self.device)
         img_in2 = batch['B'].to(self.device)
         # ---------------------------------------------------------
+        if self.testing_mode == 'crop':
+            ans = torch.zeros((img_in1.shape[0], 2, img_in1.shape[2], img_in1.shape[3]))
+            height, width = img_in1.shape[2], img_in1.shape[3]
+            height_count = height // self.window_size
+            width_count = width // self.window_size
+            for i in range(height_count):
+                for j in range(width_count):
+                    i1 = i*self.window_size
+                    i2 = (i+1)*self.window_size
+                    j1 = j*self.window_size
+                    j2 = (j+1)*self.window_size
+                    ans[:, :, i1:i2, j1:j2] = self._predict_for_window(img_in1, img_in2, i1, i2, j1, j2)
+                if width_count * self.window_size != width:
+                    j1 = width - self.window_size
+                    j2 = width_count * self.window_size
+                    for i in range(height_count):
+                        i1 = i*self.window_size
+                        i2 = (i+1)*self.window_size
+                        ans[:, :, i1:i2, j2:] = self._predict_for_window(img_in1, img_in2, i1, i2, j1, width)[:, :, :, -(width-j2):]
+            if height_count * self.window_size != height:
+                i1 = height - self.window_size
+                i2 = height_count * self.window_size
+                for j in range(width_count):
+                    j1 = j*self.window_size
+                    j2 = (j+1)*self.window_size
+                    ans[:, :, i2:, j1:j2] = self._predict_for_window(img_in1, img_in2, i1, height, j1, j2)[:, :, -(height-i2):, :]
+                if width_count * self.window_size != width:
+                    i1 = height - self.window_size
+                    i2 = height_count * self.window_size
+                    j1 = width - self.window_size
+                    j2 = width_count * self.window_size
+                    ans[:, :, i2:, j2:] = self._predict_for_window(img_in1, img_in2, i1, height, j1, width)[:, :, -(height-i2):, -(width-j2):]
+            self.G_pred = ans
 
+        elif self.testing_mode == 'sliding_window_avg':
+            pass
+        elif self.testing_mode == 'sliding_window_gauss':
+            pass
+        elif self.testing_mode == 'resize':
+            self.G_pred = self.net_G(img_in1, img_in2)
+        else:
+            print("Invalid testing_mode, select from: resize | crop | sliding_window_avg | sliding_window_gauss")
+            exit()                                                                                             
         # ---------------------------------------------------------
-        self.G_pred = self.net_G(img_in1, img_in2)
+        
         mask_pred = self.G_pred.detach().argmax(dim=1)[0]
         mask_pred_numpy = mask_pred.data.cpu().numpy()
         plt.imsave(os.path.join(self.outputs, batch['name'][0]), mask_pred_numpy*255)

@@ -57,6 +57,7 @@ class CDEvaluator():
         self.outputs = args.outputs
         self.testing_mode = args.testing_mode
         self.window_size = args.window_size
+        self.stride = args.stride
 
         # check and create model dir
         if os.path.exists(self.checkpoint_dir) is False:
@@ -165,10 +166,10 @@ class CDEvaluator():
         img_in2 = batch['B'].to(self.device)
         # ---------------------------------------------------------
         if self.testing_mode == 'crop':
-            ans = torch.zeros((img_in1.shape[0], 2, img_in1.shape[2], img_in1.shape[3]))
             height, width = img_in1.shape[2], img_in1.shape[3]
             height_count = height // self.window_size
             width_count = width // self.window_size
+            ans = torch.zeros((img_in1.shape[0], 2, height, width)).to(self.device)
             for i in range(height_count):
                 for j in range(width_count):
                     i1 = i*self.window_size
@@ -199,7 +200,34 @@ class CDEvaluator():
             self.G_pred = ans
 
         elif self.testing_mode == 'sliding_window_avg':
-            pass
+            height, width = img_in1.shape[2], img_in1.shape[3]
+            ans = torch.zeros((img_in1.shape[0], 2, height, width)).to(self.device)
+            count_matrix = torch.zeros((img_in1.shape[0], 1, height, width)).to(self.device)
+            flag0 = (height - self.window_size) % self.stride != 0  # maybe %
+            flag1 = (width - self.window_size) % self.stride != 0
+            for i in range(0, height-self.window_size+1, self.stride):
+                i_finish = i+self.window_size
+                for j in range(0, width-self.window_size+1, self.stride):                    
+                    j_finish = j+self.window_size
+                    ans[:, :, i:i_finish, j:j_finish] += self._predict_for_window(img_in1, img_in2, i, i_finish, j, j_finish)
+                    count_matrix[:, :, i:i_finish, j:j_finish] += 1
+                if flag1:
+                    j = width - self.window_size
+                    ans[:, :, i:i_finish, j:] += self._predict_for_window(img_in1, img_in2, i, i_finish, j, width)
+                    count_matrix[:, :, i:i_finish, j:] += 1
+            if flag0:
+                i = height - self.window_size
+                for j in range(0, width-self.window_size+1, self.stride):
+                    j_finish = j+self.window_size
+                    ans[:, :, i:, j:j_finish] += self._predict_for_window(img_in1, img_in2, i, height, j, j_finish)
+                    count_matrix[:, :, i:, j:j_finish] += 1
+                if flag1:
+                    j = width - self.window_size
+                    ans[:, :, i:, j:] += self._predict_for_window(img_in1, img_in2, i, height, j, width)
+                    count_matrix[:, :, i:, j:] += 1
+            ans /= count_matrix
+            self.G_pred = ans
+        # TODO do averaging step after argmax
         elif self.testing_mode == 'sliding_window_gauss':
             pass
         elif self.testing_mode == 'resize':

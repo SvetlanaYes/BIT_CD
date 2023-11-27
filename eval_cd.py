@@ -39,6 +39,8 @@ def main():
 
     parser.add_argument('--window_size', default=256, type=int, help='size of the square window segment of the image that is processed with the net')
 
+    parser.add_argument('--stride', default=64, type=int, help='stride with which the window is shifted in each step')
+
     args = parser.parse_args()
     utils.get_device(args)
     print(args.gpu_ids)

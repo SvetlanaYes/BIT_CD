@@ -16,9 +16,7 @@ def load_file_as_module(location: str):
     spec.loader.exec_module(module)
     return module
 
-slider_module = load_file_as_module("./sliding_window_methods/slider.py")
 
-Slider = slider_module.Slider
 
 # Decide which device we want to run on
 # torch.cuda.current_device()

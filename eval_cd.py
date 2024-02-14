@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--split', default="test", type=str)
 
     parser.add_argument('--img_size', default=256, type=int)
+    # parser.add_argument('--img_size', default=None)
 
     # model
     parser.add_argument('--n_class', default=2, type=int)
@@ -40,6 +41,8 @@ def main():
     parser.add_argument('--window_size', default=256, type=int, help='size of the square window segment of the image that is processed with the net')
 
     parser.add_argument('--stride', default=64, type=int, help='stride with which the window is shifted in each step')
+
+    parser.add_argument('--sigma', default=100, type=int, help='sigma of gaussian bell weights used in the sliding_window_gauss testing mode')
 
     args = parser.parse_args()
     utils.get_device(args)

@@ -7,7 +7,18 @@ from misc.metric_tool import ConfuseMatrixMeter
 from misc.logger_tool import Logger
 from utils import de_norm
 import utils
+from importlib import util
 
+def load_file_as_module(location: str):
+    """ Function to load module with location path """
+    spec = util.spec_from_file_location('', location)
+    module = util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+slider_module = load_file_as_module("./sliding_window_methods/slider.py")
+
+Slider = slider_module.Slider
 
 # Decide which device we want to run on
 # torch.cuda.current_device()
@@ -58,6 +69,7 @@ class CDEvaluator():
         self.testing_mode = args.testing_mode
         self.window_size = args.window_size
         self.stride = args.stride
+        self.sigma = args.sigma
 
         # check and create model dir
         if os.path.exists(self.checkpoint_dir) is False:
@@ -159,6 +171,12 @@ class CDEvaluator():
         window_image1 = image1[:, :, i1:i2, j1:j2]
         window_image2 = image2[:, :, i1:i2, j1:j2]
         return self.net_G(window_image1, window_image2)
+    
+    def _predict_SW_style(self, image1, image2, model):
+        res = model(image1, image2)
+        return res
+        # res_argmax = res.argmax(1)
+        # return res_argmax.unsqueeze(0)
 
     def _forward_pass(self, batch):
         self.batch = batch
@@ -203,8 +221,8 @@ class CDEvaluator():
             height, width = img_in1.shape[2], img_in1.shape[3]
             ans = torch.zeros((img_in1.shape[0], 2, height, width)).to(self.device)
             count_matrix = torch.zeros((img_in1.shape[0], 1, height, width)).to(self.device)
-            flag0 = (height - self.window_size) % self.stride != 0  # maybe %
-            flag1 = (width - self.window_size) % self.stride != 0
+            flag0 = ((height - self.window_size) % self.stride) != 0  # maybe %
+            flag1 = ((width - self.window_size) % self.stride) != 0
             for i in range(0, height-self.window_size+1, self.stride):
                 i_finish = i+self.window_size
                 for j in range(0, width-self.window_size+1, self.stride):                    
@@ -227,9 +245,15 @@ class CDEvaluator():
                     count_matrix[:, :, i:, j:] += 1
             ans /= count_matrix
             self.G_pred = ans
-        # TODO do averaging step after argmax
+        # TODO do averaging step before argmax
         elif self.testing_mode == 'sliding_window_gauss':
-            pass
+            model = self.net_G
+            detect_function = self._predict_SW_style
+
+            slider = Slider(model, detect_function, self.device, self.window_size, self.stride, self.sigma)
+            slider.set_generators((img_in1.shape[2], img_in1.shape[3]))
+            self.G_pred = slider.predict_for_images_torch(img_in1, img_in2)
+
         elif self.testing_mode == 'resize':
             self.G_pred = self.net_G(img_in1, img_in2)
         else:

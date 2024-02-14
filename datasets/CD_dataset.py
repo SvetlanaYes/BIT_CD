@@ -31,6 +31,7 @@ def load_img_name_list(dataset_path):
     img_name_list = np.loadtxt(dataset_path, dtype=np.str)
     if img_name_list.ndim == 2:
         return img_name_list[:, 0]
+    # return (np.array([str(img_name_list)]))
     return img_name_list
 
 

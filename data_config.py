@@ -11,7 +11,7 @@ class DataConfig:
         elif data_name == 'quick_start':
             self.root_dir = './samples/'
         elif data_name in ['LEVIR_CD_dataset'+mode for mode in testing_modes]:
-            self.root_dir = '../datasets/LEVIR_CD_dataset/'
+            self.root_dir = '../datasets/cropped_256/LEVIR_CD_dataset/'
         elif data_name == 'LEVIR_CD_dataset_256':
             self.root_dir = '../datasets/LEVIR_CD_dataset_256/'
         elif data_name == 'data_256':
@@ -23,11 +23,15 @@ class DataConfig:
         elif data_name in ['CDD_256'+mode for mode in testing_modes]:
             self.root_dir = '../datasets/CDD_256/'
         elif data_name in ['S2Looking'+mode for mode in testing_modes]:
-            self.root_dir = '../datasets/S2Looking/'
+            self.root_dir = '../datasets/cropped_256/S2Looking/'
         elif data_name in ['SYSU_CD_256'+mode for mode in testing_modes]:
             self.root_dir = '../datasets/SYSU_CD_256'
+        elif data_name in ['SECOND'+mode for mode in testing_modes]:
+            self.root_dir = '../datasets/cropped_256/SECOND'
         elif data_name in ['merged_all_5_originals'+mode for mode in testing_modes]:
             self.root_dir = '../datasets/merged_all_5_originals'
+        elif data_name in ['Azatazen'+mode for mode in testing_modes]:
+            self.root_dir = '../datasets/Azatazen'
         else:
             raise TypeError('%s has not defined' % data_name)
         return self

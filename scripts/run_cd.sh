@@ -2,7 +2,7 @@
 
 gpus=0
 checkpoint_root=checkpoints
-data_name=LEVIR_CD_dataset
+data_name=SECOND
 
 img_size=256
 batch_size=8
